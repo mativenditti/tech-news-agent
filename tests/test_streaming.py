@@ -48,3 +48,88 @@ def test_token_and_done_events():
     done = streaming.done_event("t3")
     assert done["event"] == "done"
     assert json.loads(done["data"]) == {"thread_id": "t3"}
+
+
+from langchain_core.messages import AIMessageChunk  # noqa: E402  (top ya lo importa)
+import app.chat as chat_mod
+
+
+class _FakeStreamGraph:
+    """Grafo falso para streaming. `mode` elige el escenario.
+
+    - "message": emite 2 chunks de texto del nodo agent, sin interrupt.
+    - "approval": emite 1 chunk y deja un interrupt pendiente en get_state.
+    - "error": lanza al iterar el stream.
+    """
+
+    def __init__(self, mode):
+        self.mode = mode
+
+    def stream(self, payload, config=None, stream_mode=None):
+        assert stream_mode == "messages"
+        if self.mode == "error":
+            raise RuntimeError("429 ResourceExhausted: quota")
+        yield (AIMessageChunk(content="Hola"), {"langgraph_node": "agent"})
+        # Un chunk de otro nodo / vacío que NO debe emitirse como token:
+        yield (AIMessageChunk(content=""), {"langgraph_node": "tools"})
+        if self.mode == "message":
+            yield (AIMessageChunk(content=", soy el bot."), {"langgraph_node": "agent"})
+
+    def get_state(self, config):
+        class _State:
+            interrupts = ()
+        if self.mode == "approval":
+            class _Interrupt:
+                value = {
+                    "action": "send_email_report",
+                    "to": "me@example.com",
+                    "subject": "Resumen",
+                    "body": "Top 3...",
+                    "message": "¿Confirmás el envío?",
+                }
+            _State.interrupts = (_Interrupt(),)
+        return _State()
+
+
+def _collect(gen):
+    return [(e["event"], e["data"]) for e in gen]
+
+
+def test_stream_chat_message(monkeypatch):
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("message"))
+    events = _collect(chat_mod.stream_chat("hola", thread_id="t1"))
+    kinds = [k for k, _ in events]
+    # Solo los chunks del nodo agent con texto -> 2 tokens, luego done.
+    assert kinds == ["token", "token", "done"]
+    import json
+    assert json.loads(events[0][1])["text"] == "Hola"
+    assert json.loads(events[1][1])["text"] == ", soy el bot."
+    assert json.loads(events[2][1])["thread_id"] == "t1"
+
+
+def test_stream_chat_approval(monkeypatch):
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("approval"))
+    events = _collect(chat_mod.stream_chat("mandá el email", thread_id="t2"))
+    kinds = [k for k, _ in events]
+    assert kinds[-1] == "approval"          # termina en approval, no en done
+    assert "done" not in kinds
+    import json
+    data = json.loads(events[-1][1])
+    assert data["action"] == "send_email_report"
+    assert data["thread_id"] == "t2"
+
+
+def test_stream_chat_error(monkeypatch):
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("error"))
+    events = _collect(chat_mod.stream_chat("hola", thread_id="t3"))
+    assert events[-1][0] == "error"
+    import json
+    assert "saturado" in json.loads(events[-1][1])["text"].lower()
+
+
+def test_stream_chat_generates_thread_id(monkeypatch):
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("message"))
+    events = _collect(chat_mod.stream_chat("hola"))
+    import json
+    tid = json.loads(events[-1][1])["thread_id"]
+    assert tid.startswith("chat-")

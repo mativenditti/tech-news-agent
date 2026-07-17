@@ -116,3 +116,41 @@ def resume_chat(thread_id: str, decision: str) -> dict:
         return _shape_result(result, thread_id)
     except Exception as exc:  # noqa: BLE001
         return _error_response(exc, thread_id)
+
+
+def stream_chat(message: str, thread_id: str | None = None, user_role: str | None = None):
+    """Streamea un turno de chat como eventos SSE (dicts {"event","data"}).
+
+    Emite `token` por cada fragmento de texto del nodo agent; al terminar, emite
+    `approval` si el grafo se pausó en el HITL del email, o `done` en caso normal.
+    Cualquier excepción se traduce a un evento `error` y cierra el stream.
+    """
+    from app import streaming  # import local para evitar ciclo con streaming.py
+
+    thread_id = thread_id or _new_thread_id()
+    config = {"configurable": {"thread_id": thread_id}}
+    try:
+        stream = graph.stream(
+            {
+                "messages": [HumanMessage(content=message)],
+                "user_role": user_role,
+                "tool_call_counts": {},
+                "blocked": False,
+            },
+            config,
+            stream_mode="messages",
+        )
+        for chunk, metadata in stream:
+            if metadata.get("langgraph_node") != "agent":
+                continue
+            text = chunk.text
+            if text:
+                yield streaming.token_event(text)
+
+        interrupts = graph.get_state(config).interrupts
+        if interrupts:
+            yield streaming.approval_event(interrupts[0], thread_id)
+        else:
+            yield streaming.done_event(thread_id)
+    except Exception as exc:  # noqa: BLE001 — degradar cualquier fallo a evento error
+        yield streaming.error_event(exc, thread_id)
