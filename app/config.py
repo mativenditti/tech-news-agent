@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     # langchain-google-genai>=3.1.0 (tenemos 4.x) para que se serialice bien en
     # tool-calling multi-turno; con <3 se dispara "400 missing thought_signature".
     llm_model: str = "gemini-3-flash-preview"
+    # Tope de tokens de razonamiento interno ("thinking") por respuesta. Gemini 3
+    # razona antes de responder, aun en respuestas triviales ("de nada" gastaba
+    # ~416 tokens de reasoning → ~15s). Un tope bajo acelera mucho lo trivial y deja
+    # margen para decisiones (elegir tools, armar el briefing). 0 lo desactiva; None
+    # deja el default dinámico del modelo (lento en lo trivial).
+    llm_thinking_budget: int = 512
 
     # --- Web search ---
     tavily_api_key: str = ""
