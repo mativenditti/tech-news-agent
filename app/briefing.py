@@ -10,6 +10,7 @@ import uuid
 
 from langchain_core.messages import AIMessage
 
+from app.config import settings
 from app.graph import graph
 from app.prompts import BRIEFING_PROMPT
 
@@ -26,7 +27,10 @@ def run_briefing(thread_id: str | None = None, user_role: str | None = None) -> 
     config = {"configurable": {"thread_id": thread_id}}
 
     result = graph.invoke(
-        build_initial_state(BRIEFING_PROMPT, user_role), config=config
+        build_initial_state(
+            BRIEFING_PROMPT, user_role, settings.llm_thinking_budget_briefing
+        ),
+        config=config,
     )
 
     # Gemini 3 devuelve content como lista de bloques, no string. AIMessage.text
@@ -51,5 +55,7 @@ def stream_briefing(thread_id: str | None = None, user_role: str | None = None):
     from app.chat import _stream_graph_events, build_initial_state
 
     thread_id = thread_id or f"briefing-{uuid.uuid4().hex[:8]}"
-    inputs = build_initial_state(BRIEFING_PROMPT, user_role)
+    inputs = build_initial_state(
+        BRIEFING_PROMPT, user_role, settings.llm_thinking_budget_briefing
+    )
     yield from _stream_graph_events(inputs, thread_id)

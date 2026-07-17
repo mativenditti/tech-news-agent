@@ -34,9 +34,13 @@ class Settings(BaseSettings):
     # Tope de tokens de razonamiento interno ("thinking") por respuesta. Gemini 3
     # razona antes de responder, aun en respuestas triviales ("de nada" gastaba
     # ~416 tokens de reasoning → ~15s). Un tope bajo acelera mucho lo trivial y deja
-    # margen para decisiones (elegir tools, armar el briefing). 0 lo desactiva; None
-    # deja el default dinámico del modelo (lento en lo trivial).
+    # margen para decisiones (elegir tools). 0 lo desactiva; None deja el default
+    # dinámico del modelo (lento en lo trivial). Este es el budget del chat.
     llm_thinking_budget: int = 512
+    # Budget para el briefing, que sí necesita razonar (elegir el "top 3", priorizar
+    # impacto). Más alto que el de chat a cambio de más latencia, aceptable porque el
+    # briefing es proactivo/menos sensible a la espera.
+    llm_thinking_budget_briefing: int = 2048
 
     # --- Web search ---
     tavily_api_key: str = ""

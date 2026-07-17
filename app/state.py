@@ -17,9 +17,12 @@ class AgentState(TypedDict):
       ("dev backend en fintech", "hincha de Boca"). El agente adapta el tono.
     - tool_call_counts: contador por tool para el rate limiting por conversación.
     - blocked: si un guardrail de entrada cortó el flujo (ruteo a END).
+    - thinking_budget: tope de razonamiento del LLM para este turno. None usa el
+      default de chat; el briefing lo setea más alto porque sí necesita razonar.
     """
 
     messages: Annotated[list, add_messages]
     user_role: Optional[str]
     tool_call_counts: dict[str, int]
     blocked: bool
+    thinking_budget: Optional[int]

@@ -12,17 +12,24 @@ from app.config import settings
 
 
 @lru_cache
-def get_llm(temperature: float = 0.0) -> ChatGoogleGenerativeAI:
+def get_llm(
+    temperature: float = 0.0, thinking_budget: int | None = None
+) -> ChatGoogleGenerativeAI:
     """Devuelve un ChatGoogleGenerativeAI reusable.
 
     temperature 0 por defecto para respuestas estables; el nodo de briefing usa
     un valor más alto para que los titulares no sean monótonos.
+
+    thinking_budget: tope de tokens de razonamiento. None usa el default de chat
+    (settings.llm_thinking_budget); el briefing pasa uno más alto explícito. Es
+    parte de la firma para que el @lru_cache tenga una instancia por budget.
     """
+    budget = settings.llm_thinking_budget if thinking_budget is None else thinking_budget
     return ChatGoogleGenerativeAI(
         model=settings.llm_model,
         temperature=temperature,
         max_output_tokens=4096,
-        thinking_budget=settings.llm_thinking_budget,
+        thinking_budget=budget,
         timeout=60,
         google_api_key=settings.google_api_key or None,
     )

@@ -62,7 +62,7 @@ def guardrails_in(state: AgentState) -> dict:
 
 def agent(state: AgentState) -> dict:
     """Nodo LLM: arma el system prompt rol-adaptativo y responde (con tools)."""
-    llm = get_llm().bind_tools(ALL_TOOLS)
+    llm = get_llm(thinking_budget=state.get("thinking_budget")).bind_tools(ALL_TOOLS)
     system = SystemMessage(content=build_system_prompt(state.get("user_role")))
     response = llm.invoke([system, *state["messages"]])
     return {"messages": [response]}

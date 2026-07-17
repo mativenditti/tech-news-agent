@@ -84,18 +84,24 @@ def _error_response(exc: Exception, thread_id: str) -> dict:
     return {"type": "error", "text": text, "thread_id": thread_id}
 
 
-def build_initial_state(message: str, user_role: str | None) -> dict:
+def build_initial_state(
+    message: str, user_role: str | None, thinking_budget: int | None = None
+) -> dict:
     """Estado inicial del grafo para un turno nuevo (AgentState).
 
     Único lugar donde se arma este dict, compartido por los caminos sync
     (send_chat) y streaming (stream_chat, stream_briefing). Si se agrega un campo
     a AgentState, se actualiza acá y no en cuatro lugares.
+
+    thinking_budget: None → el nodo agent usa el default de chat; el briefing pasa
+    uno más alto porque sí necesita razonar (elegir el top 3).
     """
     return {
         "messages": [HumanMessage(content=message)],
         "user_role": user_role,
         "tool_call_counts": {},
         "blocked": False,
+        "thinking_budget": thinking_budget,
     }
 
 
