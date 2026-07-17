@@ -42,3 +42,23 @@ def run_briefing(thread_id: str | None = None, user_role: str | None = None) -> 
             break
 
     return {"thread_id": thread_id, "briefing": text}
+
+
+def stream_briefing(thread_id: str | None = None, user_role: str | None = None):
+    """Streamea el briefing proactivo como eventos SSE (dicts {"event","data"}).
+
+    Reusa el loop común de streaming (stream_chat/_stream_graph_events); solo cambia
+    el prompt de entrada y el prefijo del thread_id. Emite `token`* y luego `done`
+    (o `approval` si hubiera un interrupt; el briefing no dispara el email, pero se
+    maneja igual por consistencia). Los errores se traducen a un evento `error`.
+    """
+    from app.chat import _stream_graph_events
+
+    thread_id = thread_id or f"briefing-{uuid.uuid4().hex[:8]}"
+    inputs = {
+        "messages": [HumanMessage(content=BRIEFING_PROMPT)],
+        "user_role": user_role,
+        "tool_call_counts": {},
+        "blocked": False,
+    }
+    yield from _stream_graph_events(inputs, thread_id)

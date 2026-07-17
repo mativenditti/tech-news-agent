@@ -133,3 +133,29 @@ def test_stream_chat_generates_thread_id(monkeypatch):
     import json
     tid = json.loads(events[-1][1])["thread_id"]
     assert tid.startswith("chat-")
+
+
+import app.briefing as briefing_mod
+
+
+def test_stream_briefing_message(monkeypatch):
+    # _stream_graph_events usa chat_mod.graph, así que parcheamos ESE grafo.
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("message"))
+    events = _collect(briefing_mod.stream_briefing(thread_id="b1"))
+    kinds = [k for k, _ in events]
+    assert kinds == ["token", "token", "done"]
+    import json
+    assert json.loads(events[-1][1])["thread_id"] == "b1"
+
+
+def test_stream_briefing_generates_thread_id(monkeypatch):
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("message"))
+    events = _collect(briefing_mod.stream_briefing())
+    import json
+    assert json.loads(events[-1][1])["thread_id"].startswith("briefing-")
+
+
+def test_stream_briefing_error(monkeypatch):
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("error"))
+    events = _collect(briefing_mod.stream_briefing(thread_id="b2"))
+    assert events[-1][0] == "error"

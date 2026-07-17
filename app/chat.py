@@ -118,28 +118,18 @@ def resume_chat(thread_id: str, decision: str) -> dict:
         return _error_response(exc, thread_id)
 
 
-def stream_chat(message: str, thread_id: str | None = None, user_role: str | None = None):
-    """Streamea un turno de chat como eventos SSE (dicts {"event","data"}).
+def _stream_graph_events(inputs: dict, thread_id: str):
+    """Corre graph.stream y emite eventos SSE (dicts {"event","data"}).
 
-    Emite `token` por cada fragmento de texto del nodo agent; al terminar, emite
-    `approval` si el grafo se pausó en el HITL del email, o `done` en caso normal.
-    Cualquier excepción se traduce a un evento `error` y cierra el stream.
+    Común a stream_chat y stream_briefing: streamea los fragmentos de texto del
+    nodo agent como `token`; al terminar emite `approval` si el grafo quedó en el
+    HITL del email, o `done`. Cualquier excepción se degrada a un evento `error`.
     """
     from app import streaming  # import local para evitar ciclo con streaming.py
 
-    thread_id = thread_id or _new_thread_id()
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        stream = graph.stream(
-            {
-                "messages": [HumanMessage(content=message)],
-                "user_role": user_role,
-                "tool_call_counts": {},
-                "blocked": False,
-            },
-            config,
-            stream_mode="messages",
-        )
+        stream = graph.stream(inputs, config, stream_mode="messages")
         for chunk, metadata in stream:
             if metadata.get("langgraph_node") != "agent":
                 continue
@@ -154,3 +144,20 @@ def stream_chat(message: str, thread_id: str | None = None, user_role: str | Non
             yield streaming.done_event(thread_id)
     except Exception as exc:  # noqa: BLE001 — degradar cualquier fallo a evento error
         yield streaming.error_event(exc, thread_id)
+
+
+def stream_chat(message: str, thread_id: str | None = None, user_role: str | None = None):
+    """Streamea un turno de chat como eventos SSE (dicts {"event","data"}).
+
+    Emite `token` por cada fragmento de texto del nodo agent; al terminar, emite
+    `approval` si el grafo se pausó en el HITL del email, o `done` en caso normal.
+    Cualquier excepción se traduce a un evento `error` y cierra el stream.
+    """
+    thread_id = thread_id or _new_thread_id()
+    inputs = {
+        "messages": [HumanMessage(content=message)],
+        "user_role": user_role,
+        "tool_call_counts": {},
+        "blocked": False,
+    }
+    yield from _stream_graph_events(inputs, thread_id)
