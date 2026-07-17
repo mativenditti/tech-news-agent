@@ -84,6 +84,21 @@ def _error_response(exc: Exception, thread_id: str) -> dict:
     return {"type": "error", "text": text, "thread_id": thread_id}
 
 
+def build_initial_state(message: str, user_role: str | None) -> dict:
+    """Estado inicial del grafo para un turno nuevo (AgentState).
+
+    Único lugar donde se arma este dict, compartido por los caminos sync
+    (send_chat) y streaming (stream_chat, stream_briefing). Si se agrega un campo
+    a AgentState, se actualiza acá y no en cuatro lugares.
+    """
+    return {
+        "messages": [HumanMessage(content=message)],
+        "user_role": user_role,
+        "tool_call_counts": {},
+        "blocked": False,
+    }
+
+
 def send_chat(
     message: str, thread_id: str | None = None, user_role: str | None = None
 ) -> dict:
@@ -91,15 +106,7 @@ def send_chat(
     thread_id = thread_id or _new_thread_id()
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        result = graph.invoke(
-            {
-                "messages": [HumanMessage(content=message)],
-                "user_role": user_role,
-                "tool_call_counts": {},
-                "blocked": False,
-            },
-            config=config,
-        )
+        result = graph.invoke(build_initial_state(message, user_role), config=config)
         return _shape_result(result, thread_id)
     except Exception as exc:  # noqa: BLE001 — queremos degradar cualquier fallo
         return _error_response(exc, thread_id)
@@ -158,10 +165,4 @@ def stream_chat(message: str, thread_id: str | None = None, user_role: str | Non
     Cualquier excepción se traduce a un evento `error` y cierra el stream.
     """
     thread_id = thread_id or _new_thread_id()
-    inputs = {
-        "messages": [HumanMessage(content=message)],
-        "user_role": user_role,
-        "tool_call_counts": {},
-        "blocked": False,
-    }
-    yield from _stream_graph_events(inputs, thread_id)
+    yield from _stream_graph_events(build_initial_state(message, user_role), thread_id)

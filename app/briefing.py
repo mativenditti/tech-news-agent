@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from app.graph import graph
 from app.prompts import BRIEFING_PROMPT
@@ -20,17 +20,13 @@ def run_briefing(thread_id: str | None = None, user_role: str | None = None) -> 
     Usa un thread nuevo por defecto para que el usuario pueda seguir la
     conversación (elegir un titular para profundizar) en ese mismo thread.
     """
+    from app.chat import build_initial_state
+
     thread_id = thread_id or f"briefing-{uuid.uuid4().hex[:8]}"
     config = {"configurable": {"thread_id": thread_id}}
 
     result = graph.invoke(
-        {
-            "messages": [HumanMessage(content=BRIEFING_PROMPT)],
-            "user_role": user_role,
-            "tool_call_counts": {},
-            "blocked": False,
-        },
-        config=config,
+        build_initial_state(BRIEFING_PROMPT, user_role), config=config
     )
 
     # Gemini 3 devuelve content como lista de bloques, no string. AIMessage.text
@@ -52,13 +48,8 @@ def stream_briefing(thread_id: str | None = None, user_role: str | None = None):
     (o `approval` si hubiera un interrupt; el briefing no dispara el email, pero se
     maneja igual por consistencia). Los errores se traducen a un evento `error`.
     """
-    from app.chat import _stream_graph_events
+    from app.chat import _stream_graph_events, build_initial_state
 
     thread_id = thread_id or f"briefing-{uuid.uuid4().hex[:8]}"
-    inputs = {
-        "messages": [HumanMessage(content=BRIEFING_PROMPT)],
-        "user_role": user_role,
-        "tool_call_counts": {},
-        "blocked": False,
-    }
+    inputs = build_initial_state(BRIEFING_PROMPT, user_role)
     yield from _stream_graph_events(inputs, thread_id)
