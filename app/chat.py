@@ -124,6 +124,10 @@ def _stream_graph_events(inputs: dict, thread_id: str):
     Común a stream_chat y stream_briefing: streamea los fragmentos de texto del
     nodo agent como `token`; al terminar emite `approval` si el grafo quedó en el
     HITL del email, o `done`. Cualquier excepción se degrada a un evento `error`.
+
+    Nota para tests: el loop corre sobre el `graph` de ESTE módulo (app.chat),
+    incluso cuando se lo invoca desde stream_briefing. Para mockearlo, parcheá
+    `app.chat.graph`, no el `graph` del módulo del caller.
     """
     from app import streaming  # import local para evitar ciclo con streaming.py
 
