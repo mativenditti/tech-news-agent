@@ -14,7 +14,7 @@ Agente de AI (LangChain + LangGraph) que te mantiene al día con las últimas no
 ## Stack
 
 - **LangChain + LangGraph** — orquestación (grafo stateful con tools, memoria e interrupts).
-- **langchain-google-genai** — LLM Gemini (`gemini-flash-latest`).
+- **langchain-google-genai** — LLM Gemini (`gemini-3-flash-preview`).
 - **Tavily** — búsqueda web (`langchain-tavily`).
 - **Chroma** — vector store local para RAG.
 - **LangSmith** — tracing/monitoreo (sólo variables de entorno, sin código).
@@ -65,7 +65,11 @@ uvicorn app.server:app --reload
 Endpoints:
 
 - `GET  /health` — estado + si el tracing está activo.
+- `POST /chat` — un turno de chat (JSON). Body: `{"message": "...", "thread_id": null, "user_role": "dev backend"}`.
+- `POST /chat/resume` — reanuda el HITL del email. Body: `{"thread_id": "...", "decision": "approve"|"reject"}`.
+- `POST /chat/stream` — igual que `/chat`, pero streamea la respuesta token a token (SSE). Ver [Streaming (SSE)](#streaming-sse).
 - `POST /briefing` — dispara el briefing proactivo. Body: `{"thread_id": null, "user_role": "dev backend"}`.
+- `POST /briefing/stream` — igual que `/briefing`, pero streameando (SSE).
 - `/agent/invoke`, `/agent/stream`, `/agent/playground` — el grafo expuesto por LangServe.
 
 ## Human-in-the-loop (email)
@@ -75,13 +79,39 @@ Cuando el agente decide llamar a `send_email_report`, el grafo se pausa: la resp
 - `resume="approve"` → "envía" el reporte (en dry-run, lo loguea).
 - `resume="reject"` → cancela, no lo manda.
 
+## Streaming (SSE)
+
+`POST /chat/stream` y `POST /briefing/stream` devuelven la respuesta como un stream **Server-Sent Events** (`Content-Type: text/event-stream`), para que el front la muestre token a token en vez de esperar a que termine todo el ida y vuelta con el LLM.
+
+Cada evento tiene un `event:` (tipo) y un `data:` (JSON):
+
+| `event`    | `data`                                                        | Cuándo |
+|------------|---------------------------------------------------------------|--------|
+| `token`    | `{"text": "<fragmento>"}`                                     | Un fragmento de la respuesta. El front lo **appendea** al mensaje. |
+| `approval` | `{"prompt","action","to","subject","body","thread_id"}`       | El grafo se pausó por el HITL del email. Cierra el stream; seguí con `POST /chat/resume`. |
+| `done`     | `{"thread_id": "..."}`                                        | Terminó OK. Cierra el stream. |
+| `error`    | `{"text": "<mensaje amable>", "thread_id": "..."}`           | Falló algo (cuota, red). El status HTTP sigue siendo 200: el error viaja **dentro** del stream. |
+
+Consumo desde el front (fetch + lectura del stream):
+
+```js
+// POST /chat/stream -> text/event-stream
+let text = "";
+for await (const evt of readSSE(response)) {
+  if (evt.event === "token")    text += JSON.parse(evt.data).text;   // append en la UI
+  if (evt.event === "approval") showApprovalButtons(JSON.parse(evt.data));
+  if (evt.event === "done")     finalize(JSON.parse(evt.data).thread_id);
+  if (evt.event === "error")    showError(JSON.parse(evt.data).text);
+}
+```
+
 ## Tests
 
 ```bash
 pytest
 ```
 
-Los tests corren offline (LLM y tools falsos): cubren los guardrails, la lógica de aprobación del email, el roundtrip de RAG y el ciclo interrupt/resume del HITL. No necesitan claves de API.
+Los tests corren offline (LLM y tools falsos): cubren los guardrails, la lógica de aprobación del email, el roundtrip de RAG, el ciclo interrupt/resume del HITL y el streaming SSE (helpers, generadoras y endpoints). No necesitan claves de API.
 
 ## Notas de producción (fuera de scope del PoC)
 
