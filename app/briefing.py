@@ -33,10 +33,12 @@ def run_briefing(thread_id: str | None = None, user_role: str | None = None) -> 
         config=config,
     )
 
+    # Gemini 3 devuelve content como lista de bloques, no string. AIMessage.text
+    # extrae el texto en ambos casos; chequear isinstance(content, str) daría "".
     text = ""
     for msg in reversed(result["messages"]):
-        if isinstance(msg, AIMessage) and isinstance(msg.content, str) and msg.content:
-            text = msg.content
+        if isinstance(msg, AIMessage) and msg.text:
+            text = msg.text
             break
 
     return {"thread_id": thread_id, "briefing": text}

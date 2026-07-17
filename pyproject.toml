@@ -5,16 +5,22 @@ description = "LLM agent (LangChain + LangGraph) that keeps you posted on tech n
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "langchain>=0.3.27,<0.4",
-    "langchain-core>=0.3.72,<0.4",
-    "langchain-google-genai>=2.1.0,<3",
-    "langchain-community>=0.3.27,<0.4",
-    "langchain-text-splitters>=0.3.8,<0.4",
-    "langchain-tavily>=0.2.0,<0.3",
-    "langchain-chroma>=0.2.0,<0.3",
-    "langgraph>=0.6.0,<0.7",
-    "langgraph-checkpoint>=2.1.0,<3",
-    "langsmith>=0.4.0,<0.5",
+    # Stack en LangChain 1.x. El salto desde 0.3 es necesario para el fix del
+    # thought_signature de Gemini 3 (ver langchain-google-genai abajo): la primera
+    # versión con ese fix (>=3.1.0) exige langchain-core>=1.0.
+    "langchain>=1.0,<2",
+    "langchain-core>=1.0,<2",
+    # >=3.1.0 es donde se arregla el round-trip del thought_signature de Gemini 3
+    # (modelos "thinking") en tool-calling multi-turno. Con <3 el server tira
+    # "400 Function call is missing a thought_signature" a partir de la 3ra tool call.
+    "langchain-google-genai>=4.1.3,<5",
+    "langchain-community>=0.4,<0.5",
+    "langchain-text-splitters>=1.0,<2",
+    "langchain-tavily>=0.2.0",
+    "langchain-chroma>=0.2.0",
+    "langgraph>=1.0,<2",
+    "langgraph-checkpoint>=2.1.0,<5",
+    "langsmith>=0.4.0",
     "langserve>=0.3.1,<0.4",
     "sse-starlette>=2.1.0",
     "fastapi>=0.115.0",

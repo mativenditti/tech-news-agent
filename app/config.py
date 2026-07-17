@@ -25,7 +25,12 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     google_api_key: str = ""
-    llm_model: str = "gemini-flash-latest"
+    # Gemini 3 flash. Los modelos 2.x están retirados para cuentas nuevas (404).
+    # Gemini 3 son modelos "thinking": emiten un thought_signature en cada
+    # functionCall que la API exige devolver idéntico en el turno siguiente. Requiere
+    # langchain-google-genai>=3.1.0 (tenemos 4.x) para que se serialice bien en
+    # tool-calling multi-turno; con <3 se dispara "400 missing thought_signature".
+    llm_model: str = "gemini-3-flash-preview"
 
     # --- Web search ---
     tavily_api_key: str = ""

@@ -36,9 +36,11 @@ _TOOLS_BY_NAME = {t.name: t for t in ALL_TOOLS}
 
 
 def _last_human_text(messages: list) -> str:
+    # .text extrae el texto tanto de content string como lista de bloques; evita
+    # el str(list) feo que confundiría a los guardrails de injection/scope.
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
-            return msg.content if isinstance(msg.content, str) else str(msg.content)
+            return msg.text
     return ""
 
 

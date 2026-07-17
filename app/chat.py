@@ -31,9 +31,15 @@ def _new_thread_id() -> str:
 
 
 def _last_ai_text(messages: list) -> str:
+    # Ojo: Gemini 3 ("thinking") devuelve content como lista de bloques
+    # ([{"type":"text","text":...}]), no como string, para poder adjuntar el
+    # thought_signature. Por eso NO chequeamos isinstance(content, str) (daría ""):
+    # usamos AIMessage.text, que extrae el texto tanto de content string como lista.
     for msg in reversed(messages):
-        if isinstance(msg, AIMessage) and isinstance(msg.content, str) and msg.content:
-            return msg.content
+        if isinstance(msg, AIMessage):
+            text = msg.text
+            if text:
+                return text
     return ""
 
 
