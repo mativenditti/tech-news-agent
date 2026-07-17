@@ -159,3 +159,53 @@ def test_stream_briefing_error(monkeypatch):
     monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("error"))
     events = _collect(briefing_mod.stream_briefing(thread_id="b2"))
     assert events[-1][0] == "error"
+
+
+def _parse_sse(body: str):
+    """Parsea el cuerpo text/event-stream en una lista de (event, data)."""
+    events = []
+    cur_event, cur_data = None, None
+    for line in body.splitlines():
+        if line.startswith("event:"):
+            cur_event = line[len("event:"):].strip()
+        elif line.startswith("data:"):
+            cur_data = line[len("data:"):].strip()
+        elif line == "":
+            if cur_event is not None:
+                events.append((cur_event, cur_data))
+            cur_event, cur_data = None, None
+    if cur_event is not None:
+        events.append((cur_event, cur_data))
+    return events
+
+
+def test_chat_stream_endpoint(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("message"))
+    from app.server import app
+
+    client = TestClient(app)
+    r = client.post("/chat/stream", json={"message": "hola", "thread_id": "s1"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = _parse_sse(r.text)
+    kinds = [k for k, _ in events]
+    assert "token" in kinds
+    assert kinds[-1] == "done"
+
+
+def test_briefing_stream_endpoint(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    # stream_briefing corre sobre app.chat.graph (via _stream_graph_events), así
+    # que parcheamos chat_mod.graph, no briefing_mod.graph.
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("message"))
+    from app.server import app
+
+    client = TestClient(app)
+    r = client.post("/briefing/stream", json={"thread_id": "s2"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = _parse_sse(r.text)
+    assert events[-1][0] == "done"

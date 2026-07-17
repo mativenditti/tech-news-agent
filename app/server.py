@@ -14,9 +14,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langserve import add_routes
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
-from app.briefing import run_briefing
-from app.chat import resume_chat, send_chat
+from app.briefing import run_briefing, stream_briefing
+from app.chat import resume_chat, send_chat, stream_chat
 from app.config import settings
 from app.graph import graph
 
@@ -75,6 +76,22 @@ class BriefingRequest(BaseModel):
 def briefing(req: BriefingRequest) -> dict:
     """Dispara el briefing proactivo (top 3 titulares + follow-up)."""
     return run_briefing(thread_id=req.thread_id, user_role=req.user_role)
+
+
+@app.post("/chat/stream")
+def chat_stream(req: ChatRequest) -> EventSourceResponse:
+    """Igual que /chat pero streameando la respuesta token a token (SSE)."""
+    return EventSourceResponse(
+        stream_chat(req.message, thread_id=req.thread_id, user_role=req.user_role)
+    )
+
+
+@app.post("/briefing/stream")
+def briefing_stream(req: BriefingRequest) -> EventSourceResponse:
+    """Igual que /briefing pero streameando el briefing token a token (SSE)."""
+    return EventSourceResponse(
+        stream_briefing(thread_id=req.thread_id, user_role=req.user_role)
+    )
 
 
 @app.get("/health")
