@@ -1,0 +1,23 @@
+# Env / secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Vector store (RAG)
+chroma_db/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
