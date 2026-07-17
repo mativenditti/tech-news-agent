@@ -209,3 +209,19 @@ def test_briefing_stream_endpoint(monkeypatch):
     assert r.headers["content-type"].startswith("text/event-stream")
     events = _parse_sse(r.text)
     assert events[-1][0] == "done"
+
+
+def test_chat_stream_endpoint_error_path(monkeypatch):
+    """Un fallo del grafo llega al wire como un evento `error` terminal, con 200
+    (el error va DENTRO del stream SSE, no como status HTTP)."""
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(chat_mod, "graph", _FakeStreamGraph("error"))
+    from app.server import app
+
+    client = TestClient(app)
+    r = client.post("/chat/stream", json={"message": "hola", "thread_id": "s3"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = _parse_sse(r.text)
+    assert events[-1][0] == "error"

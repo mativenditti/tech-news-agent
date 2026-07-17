@@ -1,11 +1,13 @@
 """Servidor LangServe (FastAPI).
 
 Expone:
-- POST /chat        -> API de chat para el front React (JSON simple)
-- POST /chat/resume -> reanuda el HITL del email (approve/reject)
-- /agent/*          -> el grafo como Runnable (invoke, stream, playground)
-- POST /briefing    -> el briefing proactivo
-- GET  /health      -> estado + si LangSmith tracing está activo
+- POST /chat            -> API de chat para el front React (JSON simple)
+- POST /chat/resume     -> reanuda el HITL del email (approve/reject)
+- POST /chat/stream     -> chat streameando la respuesta token a token (SSE)
+- /agent/*              -> el grafo como Runnable (invoke, stream, playground)
+- POST /briefing        -> el briefing proactivo
+- POST /briefing/stream -> briefing streameando token a token (SSE)
+- GET  /health          -> estado + si LangSmith tracing está activo
 """
 
 from __future__ import annotations
