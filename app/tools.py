@@ -3,18 +3,21 @@
 - web_search: Tavily. El resultado pasa por sanitize_web_content antes de volver
   al LLM, y los artículos se ingieren en el vector store (cierra el loop RAG).
 - rag_search: recupera del corpus propio de noticias ingeridas.
-- send_email_report: dry-run. Gateada por HITL: llama a interrupt() y espera la
-  confirmación humana antes de "enviar".
+- send_email_report: gateada por HITL (llama a interrupt() y espera la confirmación
+  humana). Con EMAIL_DRY_RUN sólo loguea; si no, envía por SMTP (body HTML).
 """
 
 from __future__ import annotations
 
 import logging
+import smtplib
+from email.message import EmailMessage
 
 from langchain_core.tools import tool
 from langgraph.types import interrupt
 
 from app.config import settings
+from app.email_render import markdown_to_html
 from app.guardrails import sanitize_web_content
 from app.rag import ingest_articles, rag_retrieve
 
@@ -80,7 +83,8 @@ def send_email_report(subject: str, body: str, to: str | None = None) -> str:
 
     ANTES de enviar, un humano debe confirmar. Esta tool pausa la ejecución
     (human-in-the-loop) y presenta la propuesta de reporte; sólo si se aprueba se
-    "envía" (en modo dry-run: se loguea, no se manda de verdad).
+    envía. Con EMAIL_DRY_RUN=true (default) no manda nada: sólo loguea. Con
+    EMAIL_DRY_RUN=false envía de verdad por SMTP (body como HTML).
     """
     recipient = to or settings.email_to
 
@@ -116,8 +120,34 @@ def send_email_report(subject: str, body: str, to: str | None = None) -> str:
             "No se envió de verdad porque EMAIL_DRY_RUN está activo."
         )
 
-    # Punto de extensión: acá iría el SMTP real (fuera de scope del PoC).
-    raise NotImplementedError("Envío SMTP real no implementado (usar EMAIL_DRY_RUN).")
+    _send_via_smtp(recipient, subject, body)
+    logger.info("[EMAIL SENT] To=%s Subject=%s", recipient, subject)
+    return f'Reporte enviado a {recipient} con asunto "{subject}".'
+
+
+def _send_via_smtp(recipient: str, subject: str, body: str) -> None:
+    """Envía el reporte por SMTP como multipart/alternative (texto + HTML)."""
+    if not settings.email_smtp_host:
+        raise RuntimeError(
+            "SMTP no configurado: definí EMAIL_SMTP_HOST/USER/PASSWORD "
+            "o dejá EMAIL_DRY_RUN=true."
+        )
+
+    msg = EmailMessage()
+    msg["From"] = settings.email_from
+    msg["To"] = recipient
+    msg["Subject"] = subject
+    msg.set_content(body)  # fallback text/plain
+    msg.add_alternative(markdown_to_html(body), subtype="html")
+
+    with smtplib.SMTP(
+        settings.email_smtp_host, settings.email_smtp_port, timeout=30
+    ) as smtp:
+        if settings.email_smtp_use_tls:
+            smtp.starttls()
+        if settings.email_smtp_user:
+            smtp.login(settings.email_smtp_user, settings.email_smtp_password)
+        smtp.send_message(msg)
 
 
 def _is_approved(decision: object) -> bool:

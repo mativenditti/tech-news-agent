@@ -1,4 +1,4 @@
-"""Briefing proactivo: el 'top 3 titulares' del lunes a la mañana.
+"""Briefing proactivo: el 'top 3 titulares' de la semana.
 
 Invoca el mismo grafo con el prompt de briefing. Al correr por el grafo, hereda
 guardrails, tools (web_search), tracing de LangSmith y memoria por thread.

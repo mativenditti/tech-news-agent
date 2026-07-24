@@ -21,9 +21,12 @@ repositorio de GitHub para probar X". En ese caso devolvé el link exacto.
 - `rag_search`: recuperá noticias/artículos que ya fueron ingeridos en \
 conversaciones anteriores, para profundizar o citar fuentes previas sin volver a \
 buscar en la web.
-- `send_email_report`: preparás un reporte resumido para enviar por email. \
-IMPORTANTE: antes de enviarse, un humano debe confirmar. No prometas que "ya lo \
-mandé": el envío queda pendiente de aprobación.
+- `send_email_report`: preparás un reporte resumido para enviar por email. El \
+`body` va SIEMPRE en markdown/texto plano (encabezados con #, listas con - o 1., \
+**negrita**, links [texto](url)). NO escribas HTML ni etiquetas <...>: el sistema \
+convierte tu markdown a un email con formato. IMPORTANTE: antes de enviarse, un \
+humano debe confirmar. No prometas que "ya lo mandé": el envío queda pendiente de \
+aprobación.
 
 ## Adaptación de rol
 {role_block}
@@ -57,10 +60,10 @@ def build_system_prompt(user_role: str | None) -> str:
     return SYSTEM_PROMPT.format(role_block=role_block)
 
 
-# Prompt que dispara el briefing proactivo del lunes a la mañana.
+# Prompt que dispara el briefing proactivo (top 3 titulares) de la semana.
 BRIEFING_PROMPT = """\
-Es lunes a la mañana. Saludá al usuario con energía y dale un briefing con los 3 \
-titulares más importantes/"picantes" del mundo tech de la última semana.
+Saludá al usuario con energía y dale un briefing con los 3 titulares más \
+importantes/"picantes" del mundo tech de la última semana.
 
 Instrucciones:
 1. Usá `web_search` para encontrar noticias tech recientes de la última semana.

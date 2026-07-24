@@ -54,10 +54,18 @@ class Settings(BaseSettings):
     langsmith_project: str = "tech-news-agent"
     langsmith_endpoint: str = "https://api.smith.langchain.com"
 
-    # --- Email (dry-run) ---
+    # --- Email ---
+    # En dry-run (default seguro) la tool no manda nada: sólo loguea el reporte.
     email_dry_run: bool = True
     email_from: str = "tech-news-agent@example.com"
     email_to: str = "me@example.com"
+    # SMTP: sólo se usa cuando email_dry_run=False. Sirve para Gmail (App Password),
+    # SendGrid/Mailgun SMTP, o cualquier servidor SMTP. use_tls = STARTTLS (puerto 587).
+    email_smtp_host: str = ""
+    email_smtp_port: int = 587
+    email_smtp_user: str = ""
+    email_smtp_password: str = ""
+    email_smtp_use_tls: bool = True
 
     # --- RAG / embeddings ---
     embeddings_provider: str = "fake"  # "fake" | "google"
