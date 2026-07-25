@@ -16,7 +16,7 @@ Agente de AI (LangChain + LangGraph) que te mantiene al día con las últimas no
 - **LangChain + LangGraph** — orquestación (grafo stateful con tools, memoria e interrupts).
 - **langchain-google-genai** — LLM Gemini (`gemini-3-flash-preview`).
 - **Tavily** — búsqueda web (`langchain-tavily`).
-- **Chroma** — vector store local para RAG.
+- **Postgres + pgvector** — vector store para RAG.
 - **LangSmith** — tracing/monitoreo (sólo variables de entorno, sin código).
 - **LangServe + FastAPI** — exposición HTTP.
 
@@ -54,7 +54,20 @@ Variables clave (ver `.env.example`):
 - `TAVILY_API_KEY` — requerida para la búsqueda web.
 - `LANGSMITH_TRACING=true` + `LANGSMITH_API_KEY` — habilita el tracing (opcional pero recomendado).
 - `EMAIL_DRY_RUN=true` — el email no se envía de verdad, sólo se loguea.
-- `EMBEDDINGS_PROVIDER=fake` — embeddings locales para el PoC (sin costo ni deps extra).
+- `EMBEDDINGS_PROVIDER=google` — embeddings reales (default, reusa `GOOGLE_API_KEY`). `fake` sólo para tests offline.
+
+## RAG (Postgres + pgvector)
+
+El vector store vive en Postgres con pgvector. Levantalo con Docker:
+
+```bash
+docker compose up -d
+```
+
+Configurá en tu `.env`:
+
+- `DATABASE_URL=postgresql+psycopg://tech:tech@localhost:5432/tech_news`
+- `EMBEDDINGS_PROVIDER=google` (embeddings reales; reusa `GOOGLE_API_KEY`)
 
 ## Correr
 
@@ -117,5 +130,4 @@ Los tests corren offline (LLM y tools falsos): cubren los guardrails, la lógica
 
 - **Memoria persistente:** cambiar `MemorySaver` por `SqliteSaver`/`PostgresSaver`.
 - **Scheduling del briefing:** el `POST /briefing` es manual; en producción iría detrás de un cron.
-- **Embeddings reales:** setear `EMBEDDINGS_PROVIDER=google` (reusa `GOOGLE_API_KEY`).
 - **Email real:** implementar el envío SMTP en `send_email_report` y poner `EMAIL_DRY_RUN=false`.
