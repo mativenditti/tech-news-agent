@@ -68,8 +68,11 @@ class Settings(BaseSettings):
     email_smtp_use_tls: bool = True
 
     # --- RAG / embeddings ---
-    embeddings_provider: str = "fake"  # "fake" | "google"
-    chroma_dir: str = "./chroma_db"
+    # google -> embeddings reales (text-embedding-004, 768 dims, reusa GOOGLE_API_KEY)
+    # fake   -> embeddings deterministas locales (para tests offline)
+    embeddings_provider: str = "google"  # "google" | "fake"
+    # Postgres + pgvector. Formato SQLAlchemy async-agnostic con driver psycopg.
+    database_url: str = "postgresql+psycopg://tech:tech@localhost:5432/tech_news"
 
     # --- Rate limits (por conversación) ---
     max_web_search_calls: int = 5
