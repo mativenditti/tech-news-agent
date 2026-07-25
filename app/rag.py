@@ -3,8 +3,8 @@
 Cuando `web_search` trae artículos, se ingieren acá (chunk + embed + pgvector).
 Luego `rag_search` puede recuperarlos para profundizar/citar sin volver a la web.
 
-Embeddings: por defecto `fake` (deterministas, sin costo ni deps externas) para
-que el PoC corra out-of-the-box. Cambiar a `google` en .env para embeddings reales.
+Embeddings: por defecto `google` (text-embedding-004, reales). El provider `fake`
+(deterministas, sin costo ni red) queda disponible para tests offline; se elige en .env.
 """
 
 from __future__ import annotations
