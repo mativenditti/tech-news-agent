@@ -129,21 +129,40 @@ def test_chunk_id_estable_por_url():
     assert isinstance(a, str) and a
 
 
-def test_rag_roundtrip(monkeypatch, tmp_path):
-    """Ingerir un artículo y recuperarlo del vector store (embeddings fake)."""
-    # Aislar el vector store a un dir temporal y limpiar el cache del factory.
+def _db_available() -> bool:
+    """True si hay un Postgres accesible en settings.database_url."""
+    import psycopg
+    from app.config import settings
+
+    # database_url viene con prefijo SQLAlchemy (postgresql+psycopg://); psycopg
+    # quiere postgresql:// pelado.
+    dsn = settings.database_url.replace("postgresql+psycopg://", "postgresql://")
+    try:
+        with psycopg.connect(dsn, connect_timeout=2):
+            return True
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(not _db_available(), reason="Postgres no disponible (levantar docker compose)")
+def test_rag_roundtrip(monkeypatch):
+    """Ingerir un artículo y recuperarlo desde Postgres/pgvector (embeddings fake).
+
+    Usa una colección separada (_COLLECTION propio) para no mezclar la dimensión
+    de los embeddings fake (256) con la colección real poblada con google (768).
+    """
     import app.rag as rag
     from app.config import settings
 
-    settings.embeddings_provider = "fake"
-    settings.chroma_dir = str(tmp_path / "chroma")
+    monkeypatch.setattr(settings, "embeddings_provider", "fake")
+    monkeypatch.setattr(rag, "_COLLECTION", "tech_news_test")
     rag.get_vectorstore.cache_clear()
 
     n = rag.ingest_articles(
         [
             {
                 "title": "Meta lanza nuevo modelo",
-                "url": "https://example.com/meta",
+                "url": "https://example.com/meta-test-roundtrip",
                 "content": "Meta presentó un nuevo modelo open source para desarrolladores.",
             }
         ]
@@ -153,3 +172,5 @@ def test_rag_roundtrip(monkeypatch, tmp_path):
     docs = rag.rag_retrieve("modelo de Meta", k=2)
     assert len(docs) >= 1
     assert any("Meta" in d.metadata.get("title", "") for d in docs)
+
+    rag.get_vectorstore.cache_clear()
