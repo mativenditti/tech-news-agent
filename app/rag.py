@@ -1,6 +1,6 @@
 """RAG sobre el corpus propio de noticias.
 
-Cuando `web_search` trae artículos, se ingieren acá (chunk + embed + Chroma).
+Cuando `web_search` trae artículos, se ingieren acá (chunk + embed + pgvector).
 Luego `rag_search` puede recuperarlos para profundizar/citar sin volver a la web.
 
 Embeddings: por defecto `fake` (deterministas, sin costo ni deps externas) para
@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from functools import lru_cache
 
-from langchain_chroma import Chroma
+from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -47,12 +47,14 @@ def _get_embeddings() -> Embeddings:
 
 
 @lru_cache
-def get_vectorstore() -> Chroma:
-    """Vector store Chroma persistido en disco (settings.chroma_dir)."""
-    return Chroma(
+def get_vectorstore() -> PGVector:
+    """Vector store sobre Postgres + pgvector (settings.database_url)."""
+    return PGVector(
+        embeddings=_get_embeddings(),
         collection_name=_COLLECTION,
-        embedding_function=_get_embeddings(),
-        persist_directory=settings.chroma_dir,
+        connection=settings.database_url,
+        use_jsonb=True,
+        create_extension=True,
     )
 
 
@@ -66,6 +68,7 @@ def ingest_articles(articles: list[dict]) -> int:
     parte del id del documento para no duplicar el mismo artículo.
     """
     docs: list[Document] = []
+    ids: list[str] = []
     for art in articles:
         content = (art.get("content") or "").strip()
         if not content:
@@ -80,9 +83,10 @@ def ingest_articles(articles: list[dict]) -> int:
                     metadata={"title": title, "url": url, "chunk": i},
                 )
             )
+            ids.append(_chunk_id(url, i))
     if not docs:
         return 0
-    get_vectorstore().add_documents(docs)
+    get_vectorstore().add_documents(docs, ids=ids)
     return len(docs)
 
 
