@@ -114,6 +114,21 @@ def test_send_via_smtp_sin_host_falla(monkeypatch):
         _send_via_smtp("dest@example.com", "Asunto", "cuerpo")
 
 
+def test_chunk_id_estable_por_url():
+    """El mismo (url, chunk_index) produce siempre el mismo id (idempotencia)."""
+    from app.rag import _chunk_id
+
+    a = _chunk_id("https://example.com/x", 0)
+    b = _chunk_id("https://example.com/x", 0)
+    c = _chunk_id("https://example.com/x", 1)
+    d = _chunk_id("https://example.com/y", 0)
+
+    assert a == b            # determinista
+    assert a != c            # distinto chunk → distinto id
+    assert a != d            # distinta url → distinto id
+    assert isinstance(a, str) and a
+
+
 def test_rag_roundtrip(monkeypatch, tmp_path):
     """Ingerir un artículo y recuperarlo del vector store (embeddings fake)."""
     # Aislar el vector store a un dir temporal y limpiar el cache del factory.

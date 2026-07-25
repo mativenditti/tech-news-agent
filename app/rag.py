@@ -9,6 +9,7 @@ que el PoC corra out-of-the-box. Cambiar a `google` en .env para embeddings real
 
 from __future__ import annotations
 
+import hashlib
 from functools import lru_cache
 
 from langchain_chroma import Chroma
@@ -19,6 +20,15 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import settings
 
 _COLLECTION = "tech_news"
+
+
+def _chunk_id(url: str, chunk_index: int) -> str:
+    """Id determinista para un chunk, derivado de (url, índice).
+
+    Permite upsert: re-ingerir el mismo artículo sobrescribe en vez de duplicar.
+    """
+    raw = f"{url}::{chunk_index}"
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
 def _get_embeddings() -> Embeddings:
