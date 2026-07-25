@@ -3,7 +3,7 @@
 Cuando `web_search` trae artículos, se ingieren acá (chunk + embed + pgvector).
 Luego `rag_search` puede recuperarlos para profundizar/citar sin volver a la web.
 
-Embeddings: por defecto `google` (text-embedding-004, reales). El provider `fake`
+Embeddings: por defecto `google` (gemini-embedding-001, reales). El provider `fake`
 (deterministas, sin costo ni red) queda disponible para tests offline; se elige en .env.
 """
 
@@ -37,7 +37,7 @@ def _get_embeddings() -> Embeddings:
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
         return GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
+            model=settings.embeddings_model,
             google_api_key=settings.google_api_key or None,
         )
     # Default PoC: embeddings deterministas locales.

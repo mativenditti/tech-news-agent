@@ -68,9 +68,13 @@ class Settings(BaseSettings):
     email_smtp_use_tls: bool = True
 
     # --- RAG / embeddings ---
-    # google -> embeddings reales (text-embedding-004, 768 dims, reusa GOOGLE_API_KEY)
+    # google -> embeddings reales (gemini-embedding-001, 3072 dims, reusa GOOGLE_API_KEY)
     # fake   -> embeddings deterministas locales (para tests offline)
     embeddings_provider: str = "google"  # "google" | "fake"
+    # Modelo de embeddings de Google. text-embedding-004 fue retirado para cuentas
+    # nuevas (404); gemini-embedding-001 es el estable disponible. Configurable por si
+    # también se retira.
+    embeddings_model: str = "models/gemini-embedding-001"
     # Postgres + pgvector. Formato SQLAlchemy async-agnostic con driver psycopg.
     database_url: str = "postgresql+psycopg://tech:tech@localhost:5432/tech_news"
 
