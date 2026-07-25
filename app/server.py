@@ -100,6 +100,16 @@ def briefing_stream(req: BriefingRequest) -> EventSourceResponse:
 def health() -> dict:
     # El tracing está "activo" sólo si tracing=true Y hay api key. No exponemos la key.
     tracing_active = settings.langsmith_tracing and bool(settings.langsmith_api_key)
+
+    import psycopg
+
+    dsn = settings.database_url.replace("postgresql+psycopg://", "postgresql://")
+    try:
+        with psycopg.connect(dsn, connect_timeout=2):
+            db_reachable = True
+    except Exception:
+        db_reachable = False
+
     return {
         "status": "ok",
         "model": settings.llm_model,
@@ -108,4 +118,6 @@ def health() -> dict:
         "langsmith_active": tracing_active,
         "langsmith_project": settings.langsmith_project,
         "email_dry_run": settings.email_dry_run,
+        "embeddings_provider": settings.embeddings_provider,
+        "db_reachable": db_reachable,
     }
